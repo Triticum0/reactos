@@ -353,19 +353,12 @@ EngpCreatePDEV(
     DPRINT("EngpCreatePDEV(%wZ, %p)\n", pustrDeviceName, pdm);
 
     /* Try to find the GRAPHICS_DEVICE */
-    if (pustrDeviceName)
+    pGraphicsDevice = EngpFindGraphicsDevice(pustrDeviceName, 0, 0);
+    if (!pGraphicsDevice)
     {
-        pGraphicsDevice = EngpFindGraphicsDevice(pustrDeviceName, 0, 0);
-        if (!pGraphicsDevice)
-        {
-            DPRINT1("No GRAPHICS_DEVICE found for %ls!\n",
-                    pustrDeviceName ? pustrDeviceName->Buffer : 0);
-            return NULL;
-        }
-    }
-    else
-    {
-        pGraphicsDevice = gpPrimaryGraphicsDevice;
+        DPRINT1("No GRAPHICS_DEVICE found for %ls!\n",
+                pustrDeviceName ? pustrDeviceName->Buffer : 0);
+        return NULL;
     }
 
     /* Allocate a new PDEVOBJ */
