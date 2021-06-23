@@ -1299,8 +1299,62 @@ VideoPortCreateSecondaryDisplay(
     IN OUT PVOID *SecondaryDeviceExtension,
     IN ULONG Flag)
 {
-    UNIMPLEMENTED;
-    return ERROR_DEV_NOT_EXIST;
+    WCHAR DeviceVideoBuffer[20];
+    UNICODE_STRING DeviceName;
+    WCHAR SymlinkBuffer[20];
+    UNICODE_STRING SymlinkName;
+    PDEVICE_OBJECT DeviceObject;
+    PVIDEO_PORT_DEVICE_EXTENSION FirstDeviceExtension, DeviceExtension;
+    NTSTATUS Status;
+
+    ASSERT(SecondaryDeviceExtension);
+
+    if (Flag != 0)
+    {
+        UNIMPLEMENTED;
+    }
+
+    FirstDeviceExtension = VIDEO_PORT_GET_DEVICE_EXTENSION(HwDeviceExtension);
+
+    Status = IntVideoPortCreateAdapterDeviceObject(FirstDeviceExtension->DriverObject,
+                                                   FirstDeviceExtension->DriverExtension,
+                                                   NULL,
+                                                   &DeviceObject);
+    if (!NT_SUCCESS(Status))
+    {
+        DPRINT1("IntVideoPortCreateAdapterDeviceObject() failed with status 0x%08x\n", Status);
+        return ERROR_DEV_NOT_EXIST;
+    }
+
+    DeviceExtension = DeviceObject->DeviceExtension;
+    VideoPortDeviceNumber++;
+
+    /* Add entry to DEVICEMAP\VIDEO key in registry. */
+    swprintf(DeviceVideoBuffer, L"\\Device\\Video%d", DeviceExtension->DeviceNumber);
+    RtlWriteRegistryValue(
+        RTL_REGISTRY_DEVICEMAP,
+        L"VIDEO",
+        DeviceVideoBuffer,
+        REG_SZ,
+        DeviceExtension->RegistryPath.Buffer,
+        DeviceExtension->RegistryPath.Length + sizeof(UNICODE_NULL));
+
+    RtlWriteRegistryValue(
+        RTL_REGISTRY_DEVICEMAP,
+        L"VIDEO",
+        L"MaxObjectNumber",
+        REG_DWORD,
+        &DeviceExtension->DeviceNumber,
+        sizeof(DeviceExtension->DeviceNumber));
+
+    /* Create symbolic link "\??\DISPLAYx" */
+    swprintf(SymlinkBuffer, L"\\??\\DISPLAY%lu", DeviceExtension->DeviceNumber + 1);
+    RtlInitUnicodeString(&SymlinkName, SymlinkBuffer);
+    RtlInitUnicodeString(&DeviceName, DeviceVideoBuffer);
+    IoCreateSymbolicLink(&SymlinkName, &DeviceName);
+
+    *SecondaryDeviceExtension = DeviceExtension->MiniPortDeviceExtension;
+    return NO_ERROR;
 }
 
 /*
